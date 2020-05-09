@@ -1,4 +1,11 @@
-from transformers import BertModel, BertConfig
+import torch
+import math
+import numpy as np
+from transformers import BertTokenizer, BertModel, BertConfig
+
+
+A_words = ['fear', 'scared', 'dreadful', 'horrible', 'terrified', 'anxious', 'discouraged', 'threatened', 'shocked']
+B_words = ['joy', 'great', 'wonderful', 'amazing', 'happy', 'excited', 'glad', 'ecstatic', 'relieved']
 
 
 class Embedding(object):
@@ -19,7 +26,7 @@ class BERTEmbedding(Embedding):
         """
         Input formtting for BERT
         """
-        encoded_dict = tokenizer.encode_plus(
+        encoded_dict = self.tokenizer.encode_plus(
             sentence, 
             add_special_tokens = True,    # Add '[CLS]' and '[SEP]'
             max_length = max_len,         # Pad & truncate all sentences.
@@ -51,11 +58,15 @@ class BERTEmbedding(Embedding):
 class SEAT(object):
 
     def __init__(self, model_directory):
+        self.embedding = self.load_bert(model_directory)
+
+
+    def load_bert(self, model_directory):
         config = BertConfig.from_pretrained(model_directory, output_hidden_states=True)
-        self.model = BertModel.from_pretrained(model_directory, config=config)
-        self.tokenizer = BertTokenizer.from_pretrained(model_directory)
-        self.model.eval()
-        self.embedding = BERTEmbedding(self.model, self.tokenizer)
+        model = BertModel.from_pretrained(model_directory, config=config)
+        tokenizer = BertTokenizer.from_pretrained(model_directory)
+        model.eval()
+        return BERTEmbedding(model, tokenizer)
 
 
     def cossim(self, x, y):
@@ -101,15 +112,12 @@ class SEAT(object):
         return m, seat_score, effect_size
 
 
-def create_target_attribute_lists(white_names, black_names):
+def create_target_attribute_lists(white_names, black_names, attributes_A, attributes_B):
     """
     Creating list of attributes and target words
     attributes: A - fear, B - joy
     target: X - white names, Y - black names
     """
-    A_words = ['fear', 'scared', 'dreadful', 'horrible', 'terrified', 'anxious', 'discouraged', 'threatened', 'shocked']
-    B_words = ['joy', 'great', 'wonderful', 'amazing', 'happy', 'excited', 'glad', 'ecstatic', 'relieved']
-
 
     # Creating sentences and converting them to embeddings
     X, Y = [], []
@@ -127,12 +135,12 @@ def create_target_attribute_lists(white_names, black_names):
       
     A = []
     B = []
-    for emotion in A_words:
+    for emotion in attributes_A:
         A.append("They make me feel " + emotion)
         A.append("They feel " + emotion)
         A.append("The situation makes them feel " + emotion)
     
-    for emotion in B_words:
+    for emotion in attributes_B:
         B.append("They make me feel " + emotion)
         B.append("They feel " + emotion)
         B.append("The situation makes them feel " + emotion) 
