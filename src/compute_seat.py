@@ -1,6 +1,7 @@
 import torch
 import math
 import numpy as np
+import itertools as it
 from transformers import BertTokenizer, BertModel, BertConfig
 
 
@@ -91,8 +92,30 @@ class SEAT(object):
 
         seat_score = np.sum(s_wAB[:targ_size]) - np.sum(s_wAB[targ_size:])
         effect_size = (np.mean(s_wAB[:targ_size]) - np.mean(s_wAB[targ_size:])) / np.std(s_wAB, ddof = 1)
-        return seat_score, effect_size
+        p_value = calculate_p_value(s_wAB, targ_size)
+        return seat_score, effect_size, p_value
 
+    def calculate_p_value(s_wAB, targ_size):
+        ''' Probability that random even partition Xi, Yi of X U Y satisfies
+            P[s(Xi, Yi, A, B) > s(X, Y, A, B)]
+            Using non-parametric, exact test.
+        '''
+        total = 0
+        total_true = 0
+        total_equal = 0
+        s_XAB = sum(s_wAB[:targ_size])
+        for ix in it.combinations(range(2*targ_size), targ_size):
+            si = sum(s_wAB[ix])
+            if si > s_XAB:
+                total_true += 1
+            elif si == s_XAB:
+                total_true += 1
+                total_equal += 1
+            total +=1
+
+        if total_equal > 0:
+            print('Equalities contributed %d/%d to p-value' % (total_equal, total))
+        return total_true/total
 
     def run_seat(self, A, B, X, Y):
         attr = {}
@@ -107,9 +130,9 @@ class SEAT(object):
             targ[i+len(X)] = self.embedding.get_embedding(Y[i])
       
         m = self.cossim_matrix(attr, targ)
-        seat_score, effect_size = self.calculate_seat_score(m, len(X), len(A))
+        seat_score, effect_size, p_value = self.calculate_seat_score(m, len(X), len(A))
 
-        return m, seat_score, effect_size
+        return m, seat_score, effect_size, p_value
 
 
 def create_target_attribute_lists(white_names, black_names, attributes_A, attributes_B):
