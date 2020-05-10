@@ -1,4 +1,4 @@
-# cs682-final-project
+# Quantifying Bias in Contextualized Embeddings
 Semester project for Machine Learning: Deep Learning, Spring 2020
 
 The Fine-Tuned BERT models can be found in `notebooks/`. Each model is in a notebook with the names of the corpus used.
